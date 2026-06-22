@@ -1,0 +1,71 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node_version: '18'
+
+    - name: Install Dependencies
+      run: |
+        cd app
+        npm install
+
+    - name: Build Docker Image
+      run: |
+        docker build -t acrnouralhudafinal.azurecr.io/node-app:${{ github.sha }} .
+
+  push-to-registry:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Login to ACR
+      run: |
+        az acr login --name acrnouralhudafinal
+
+    - name: Build and Push Image to ACR
+      run: |
+        docker build -t acrnouralhudafinal.azurecr.io/node-app:${{ github.sha }} .
+        docker tag acrnouralhudafinal.azurecr.io/node-app:${{ github.sha }} acrnouralhudafinal.azurecr.io/node-app:latest
+        docker push acrnouralhudafinal.azurecr.io/node-app:${{ github.sha }}
+        docker push acrnouralhudafinal.azurecr.io/node-app:latest
+
+  deploy-to-production:
+    needs: push-to-registry
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get AKS Credentials
+      run: |
+        az aks get-credentials --resource-group rg-NourAlhuda-final --name aks-NourAlhuda-final
+
+    - name: Deploy to AKS
+      run: |
+        sed -i 's|acrnouralhudafinal.azurecr.io/node-app:latest|acrnouralhudafinal.azurecr.io/node-app:${{ github.sha }}|g' k8s/deployment.yaml
+        kubectl apply -f k8s/
