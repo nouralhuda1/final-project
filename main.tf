@@ -32,7 +32,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name       = "default"
     node_count = 2
-    vm_size    = "Standard_B2s"
+    vm_size    = "standard_b2s_v2"
   }
 
   identity {
@@ -47,7 +47,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
 # 4. Attach ACR to AKS (AcrPull Role Assignment)
 resource "azurerm_role_assignment" "aks_acr_pull" {
-  principal_id                     = azurerm_kubernetes_cluster.aks.kube_let_identity[0].object_id
+  principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   role_definition_name             = "AcrPull"
   scope                            = azurerm_container_registry.acr.id
   skip_service_principal_aad_check = true

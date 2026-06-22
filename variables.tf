@@ -11,6 +11,6 @@ variable "student_name" {
 
 variable "location" {
   type        = string
-  default     = "East US"
+  default     = "swedencentral"
   description = "Azure region for resources"
 }
